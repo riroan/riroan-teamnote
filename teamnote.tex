@@ -558,6 +558,7 @@ int find(int a) {
 	if (a == p[a])return a;
 	return p[a] = find(p[a]);
 }
+
 bool merge(int a, int b) {
 	a = find(a);
 	b = find(b);
@@ -566,6 +567,7 @@ bool merge(int a, int b) {
 	p[b] = a;
 	return true;
 }
+
 int main() {
 	cin.tie(0)->sync_with_stdio(0);
 	cin >> N >> M;
@@ -649,128 +651,126 @@ int main(){
 \end{minted}
 \subsection{HLD(C++)}
 \begin{minted}{cpp}
-int N, M;
-vector<pi> edge, v[MAX];
-vector<int> c[MAX];
-int tmpw[MAX], tree[1 << 18];
-int init(int node, int s, int e) {
-	if (s == e)
-	return tree[node] = tmpw[s];
-	int mid = (s + e) / 2;
-	return tree[node] = max(init(node * 2, s, mid),
-	init(node * 2 + 1, mid + 1, e));
-}
-int query(int node, int s, int e, int left, int right) {
-	if (e < left || right < s)
-	return -INF;
-	if (left <= s && e <= right)
-	return tree[node];
-	int mid = (s + e) / 2;
-	return max(query(node * 2, s, mid, left, right),
-	query(node * 2 + 1, mid + 1, e, left, right));
-}
-void update(int node, int s, int e, int idx, int val) {
-	if (e < idx || idx < s)
-	return;
-	if (e == idx && idx == s) {
-		tree[node] = val;
-		return;
-	}
-	int mid = (s + e) / 2;
-	update(node * 2, s, mid, idx, val);
-	update(node * 2 + 1, mid + 1, e, idx, val);
-	tree[node] = max(tree[node * 2], tree[node * 2 + 1]);
-}
-int sz[MAX], d[MAX], p[MAX], t[MAX], in[MAX], out[MAX], tmp;
-int w[MAX];
-bool visit[MAX];
-void dfs(int cur) {
-	visit[cur] = true;
-	for (auto i : v[cur]) {
-		if (!visit[i.second]) {
-			c[cur].push_back(i.second);
-			w[i.second] = i.first;
-			dfs(i.second);
-		}
-	}
-}
-void dfs1(int cur) {
-	sz[cur] = 1;
-	for (auto& i : c[cur]) {
-		d[i] = d[cur] + 1;
-		p[i] = cur;
-		dfs1(i);
-		sz[cur] += sz[i];
-		if (sz[i] > sz[c[cur][0]])
-		swap(i, c[cur][0]);
-	}
-}
-void dfs2(int cur) {
-	in[cur] = ++tmp;
-	for (auto i : c[cur]) {
-		if (i == c[cur][0])
-		t[i] = t[cur];
-		else
-		t[i] = i;
-		dfs2(i);
-	}
-	out[cur] = tmp;
-}
-int hldQuery(int n1, int n2) {
-	int ret = -INF;
-	while (t[n1] != t[n2]) {
-		if (d[t[n1]] > d[t[n2]])
-		swap(n1, n2);
-		int top = t[n2];
-		ret = max(ret, query(1, 1, N, in[top], in[n2]));
-		n2 = p[top];
-	}
-	if (d[n1] > d[n2])
-	swap(n1, n2);
-	for (auto i : c[n1]) {
-		if (t[i] == t[n1]) {
-			n1 = i;
-			break;
-		}
-	}
-	ret = max(ret, query(1, 1, N, in[n1], in[n2]));
-	return ret;
-}
-void hldUpdate(int idx, int val) {
-	int idx1 = edge[idx].first;
-	int idx2 = edge[idx].second;
-	if (d[idx1] < d[idx2])
-	update(1, 1, N, in[idx2], val);
-	else
-	update(1, 1, N, in[idx1], val);
-}
-int main() {
-	cin.tie(0)->sync_with_stdio(0);
-	cin >> N;
-	for (int i = 0; i < N - 1; i++) {
-		int n1, n2, cost;
-		cin >> n1 >> n2 >> cost;
-		v[n1].push_back({ cost, n2 });
-		v[n2].push_back({ cost, n1 });
-		edge.push_back({ n1, n2 });
-	}
-	dfs(1);
-	dfs1(1);
-	dfs2(1);
-	for (int i = 1; i <= N; i++) {
-		tmpw[in[i]] = w[i];
-	}
-	init(1, 1, N);
-	cin >> M;
-	while (M--) {
-		int ch, a, b;
-		cin >> ch >> a >> b;
-		if (ch == 1)
-		hldUpdate(a - 1, b);
-		else
-		cout << hldQuery(a, b) << "\n";
-	}
-}
+struct HLD
+{
+    vector<int> sz, d, p, top, in, out;
+    vector<vector<int>> arr;
+    SegmentTree<int> st;
+    map<pair<int, int>, int> edges;
+    int n, pv = 0;
+
+    HLD(int n)
+    {
+        this->n = n;
+        sz.resize(n);
+        d.resize(n);
+        p.resize(n);
+        top.resize(n);
+        in.resize(n);
+        out.resize(n);
+        arr.resize(n);
+    }
+
+    void add(int u, int v, int w = 1)
+    {
+        arr[u].push_back(v);
+        arr[v].push_back(u);
+        edges[minmax(u, v)] = w;
+    }
+
+    void make(int root = 0)
+    {
+        top[root] = root;
+        d[root] = 0;
+        p[root] = -1;
+        dfs1(root);
+        dfs2(root);
+        vector<int> brr(n);
+        for (int i = 0; i < n; i++)
+            for (auto j : arr[i])
+                brr[in[j]] = edges[minmax(i, j)];
+        st = SegmentTree<int>(
+            brr, [](int a, int b)
+            { return a + b; },
+            0LL);
+    }
+
+    void dfs1(int x = 0)
+    {
+        if (p[x] != -1)
+            arr[x].erase(find(arr[x].begin(), arr[x].end(), p[x]));
+
+        sz[x] = 1;
+        for (auto &i : arr[x])
+        {
+            d[i] = d[x] + 1;
+            p[i] = x;
+            dfs1(i);
+            sz[x] += sz[i];
+            if (sz[i] > sz[arr[x][0]])
+                swap(i, arr[x][0]);
+        }
+    }
+
+    void dfs2(int x = 0)
+    {
+        in[x] = pv++;
+        for (auto i : arr[x])
+        {
+            top[i] = i == arr[x][0] ? top[x] : i;
+            dfs2(i);
+        }
+        out[x] = pv;
+    }
+
+    auto lca(int a, int b)
+    {
+        int ret = 0;
+        while (top[a] ^ top[b])
+        {
+            if (d[top[a]] > d[top[b]])
+                a = p[top[a]];
+            else
+                b = p[top[b]];
+        }
+        return d[a] < d[b] ? a : b;
+    }
+
+    auto unit_dist(int a, int b)
+    {
+        return d[a] + d[b] - 2 * d[lca(a, b)];
+    }
+
+    auto dist(int a, int b)
+    {
+        int ret = 0;
+        while (top[a] != top[b])
+        {
+            if (d[top[a]] < d[top[b]])
+                swap(a, b);
+            ret += st.query(in[top[a]], in[a]);
+            a = p[top[a]];
+        }
+        if (d[a] > d[b])
+            swap(a, b);
+        ret += st.query(in[a] + 1, in[b]);
+        return ret;
+    }
+
+    auto query(int a, int b){
+        // do something
+    }
+
+    bool isAncestor(int a, int b)
+    {
+        return in[a] <= in[b] && in[b] < out[a];
+    }
+
+    auto rootedLCA(int a, int b, int c)
+    {
+        return lca(a, b) ^ lca(b, c) ^ lca(c, a);
+    }
+};
 \end{minted}
 \subsection{Push Relabel(C++)}
 \begin{minted}{cpp}
@@ -972,31 +972,29 @@ struct MinCostFlow
 \section{Data Structure}
 \subsection{Disjoint Set}
 \begin{minted}{python}
-p = [-1]*n
-def merge(x, y):
-    x, y = find(x), find(y)
-    if x == y: return
-    # p contains size(negative), size-based merge
-    if p[x] < p[y]:
-        p[x] += p[y]
-        p[y] = x
-    else:
-        p[y] += p[x]
-        p[x] = y
-    # You can just simply use: p[y] = p[x]
-    # if you don't need the size
+class DisjointSet:
+    def __init__(self, n):
+        self.f = [i for i in range(n)]
+        self.siz = [1]*n
 
-def find(x):
-    if p[x] < 0:
+    def get(self, x):
+        while x!=self.f[x]:
+            self.f[x] = self.f[self.f[x]]
+            x = self.f[x]
         return x
-    temp = x
-    while p[temp] >= 0:
-        temp = p[temp]
-    p[x] = temp
-    return p[x]
 
-def size(x):
-    return -p[find(x)]
+    def unite(self, x, y):
+        x = self.get(x)
+        y = self.get(y)
+        if x == y:
+            return False
+        self.siz[x] += self.siz[y]
+        self.f[y] = x
+        return True
+
+    def size(self, x):
+        return self.siz[self.get(x)]
+
 \end{minted}
 \subsection{MergeSort Tree}
 \begin{minted}{python}
@@ -1108,36 +1106,36 @@ class Trie:
 \end{minted}
 \subsection{Policy Based Data Structure(C++)}
 \begin{minted}{cpp}
-	#include<ext/pb_ds/assoc_container.hpp>
-	#include<ext/pb_ds/tree_policy.hpp>
-	using namespace __gnu_pbds;
-	typedef tree<
-	int,
-	null_type,
-	less<int>,
-	rb_tree_tag,
-	tree_order_statistics_node_update>
-	ordered_set;
+#include<ext/pb_ds/assoc_container.hpp>
+#include<ext/pb_ds/tree_policy.hpp>
+using namespace __gnu_pbds;
+typedef tree<
+int,
+null_type,
+less<int>,
+rb_tree_tag,
+tree_order_statistics_node_update>
+ordered_set;
 
-	int main(){
-		ordered_set X;
+int main(){
+    ordered_set X;
 
-		X.insert(16);
-		X.insert(1);
-		X.insert(4);
-		X.insert(2);
+    X.insert(16);
+    X.insert(1);
+    X.insert(4);
+    X.insert(2);
 
-		cout<<*X.find_by_order(0)<<endl; // 1
-		cout<<*X.find_by_order(1)<<endl; // 2
-		cout<<*X.find_by_order(2)<<endl; // 4
-		cout<<*X.find_by_order(3)<<endl; // 16
-		cout<<*X.find_by_order(-1)<<endl; // 0 : invalid index
-		cout<<*X.find_by_order(5)<<endl;
+    cout<<*X.find_by_order(0)<<endl; // 1
+    cout<<*X.find_by_order(1)<<endl; // 2
+    cout<<*X.find_by_order(2)<<endl; // 4
+    cout<<*X.find_by_order(3)<<endl; // 16
+    cout<<*X.find_by_order(-1)<<endl; // 0 : invalid index
+    cout<<*X.find_by_order(5)<<endl;
 
-		cout<<X.order_of_key(1)<<endl; // #(less than 1) : 0
-		cout<<X.order_of_key(4)<<endl; // #(less than 4) : 2
-		cout<<X.order_of_key(400)<<endl; // #(less than 400) : 4
-	}
+    cout<<X.order_of_key(1)<<endl; // #(less than 1) : 0
+    cout<<X.order_of_key(4)<<endl; // #(less than 4) : 2
+    cout<<X.order_of_key(400)<<endl; // #(less than 400) : 4
+}
 \end{minted}
 \subsection{Segment Tree(C++)}
 \begin{minted}{cpp}

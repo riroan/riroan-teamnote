@@ -2573,30 +2573,21 @@ def LCS(a, b): # O(n^2)
 \end{minted}
 \subsection{2D Prefix-sum}
 \begin{minted}{python}
-def get(a, b, c, d):
-    if a == 0 and b == 0:
-        return s[c][d]
-    elif a == 0:
-        return s[c][d] - s[c][b - 1]
-    elif b == 0:
-        return s[c][d] - s[a - 1][d]
-    else:
-        return s[c][d] - s[c][b - 1] - s[a - 1][d] + s[a - 1][b - 1]
+def get_ps(arr):
+    n = len(arr)
+    m = len(arr[0])
+    s = [[0] * (m + 1) for _ in range(n + 1)]
+    for i in range(1, n + 1):
+        for j in range(1, m + 1):
+            s[i][j] = arr[i - 1][j - 1] + s[i - 1][j] + \
+                s[i][j - 1] - s[i - 1][j - 1]
 
-
-s = [[0] * m for _ in range(n)]
-s[0][0] = arr[0][0]
-for i in range(n):
-    for j in range(m):
-        if i == 0:
-            if j == 0:
-                continue
-            s[0][j] = s[0][j - 1] + arr[0][j]
-        elif j == 0:
-            s[i][j] = s[i - 1][j] + arr[i][j]
-        else:
-            s[i][j] = s[i - 1][j] + s[i][j - 1] - s[i - 1][j - 1] + arr[i][j]
-
+    def get(a, b, c, d):
+        nonlocal arr, s
+        c += 1
+        d += 1
+        return s[c][d] - s[a][d] - s[c][b] + s[a][b]
+    return get
 \end{minted}
 
 \subsection{1D-Knapsack}
